@@ -116,8 +116,8 @@ HOST_NAME = os.environ.get('HOST_NAME', "https://app.aixblock.io")
 TYPE_ENV = os.environ.get('TYPE_ENV',"DETECTION")
 
 try:
-    account_sid = "***REMOVED-TWILIO-SID***"
-    auth_token = "***REMOVED-TWILIO-AUTH-TOKEN***"
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
 
     if account_sid and auth_token:
         client = Client(account_sid, auth_token)
@@ -392,7 +392,7 @@ class MyModel(AIxBlockMLBase):
                 hf_model_id = kwargs.get("hf_model_id", "deepseek-v3-1b")
                 channel_log = kwargs.get("channel_log", "training_logs")
 
-                push_to_hub_token = kwargs.get("push_to_hub_token", "***REMOVED-HF-TOKEN***")
+                push_to_hub_token = kwargs.get("push_to_hub_token") or os.environ.get("HF_TOKEN", "")
                 
                 log_queue, logging_thread = start_queue(channel_log)
                 write_log(log_queue)

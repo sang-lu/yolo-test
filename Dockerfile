@@ -77,7 +77,8 @@ RUN pip install -U flask-cors
 RUN pip install --upgrade Flask
 RUN python3.10 -m pip install huggingface_hub[hf_transfer]
 RUN python3.10 -m pip install huggingface_hub
-RUN python3.10 -c "from huggingface_hub.hf_api import HfFolder; HfFolder.save_token('***REMOVED-HF-TOKEN***')"
+# Hugging Face auth is handled at runtime via login(token=...) in model.py
+# (HF_TOKEN env var / push_to_hub_token kwarg) - no build-time token needed.
 # RUN pip install gradio==3.50.0
 EXPOSE 9090 6006 12345
 CMD exec gunicorn --preload --bind :$PORT --workers 1 --threads 8 --timeout 0 _wsgi:app
