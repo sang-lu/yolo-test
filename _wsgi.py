@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
     # Đăng ký Swagger UI blueprint
     app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
-    app.run(host=args.host, port=args.port, debug=args.debug, ssl_context=('/app/cert.pem', '/app/privkey.pem'))
+    app.run(host=args.host, port=args.port, debug=args.debug, ssl_context=('/app/ssl/uwsgi_cert.pem', '/app/ssl/uwsgi_key.pem'))
     CORS(app,resources={r"/*": {"origins": "*"}})
 
     @app.route('/swagger.json')

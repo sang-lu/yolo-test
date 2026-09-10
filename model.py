@@ -335,6 +335,10 @@ class MyModel(AIxBlockMLBase):
     model_trial_public_url = ""
     model_trial_local_url = ""
 
+    is_init_model = False
+    model_public_url = ""
+    model_local_url = ""
+
     def predict(self, tasks: List[Dict], context: Optional[Dict] = None, **kwargs) -> List[Dict]:
         """ 
         """
@@ -855,9 +859,17 @@ class MyModel(AIxBlockMLBase):
             # return {"message": "train completed successfully"}
 
     def model(self, **kwargs):
+        while self.is_init_model:
+            time.sleep(1)
+
+        if len(self.model_local_url) > 0 and len(self.model_public_url) > 0:
+            return {"share_url": self.model_public_url, 'local_url': self.model_local_url}
+
+        self.is_init_model = True
+
         print(kwargs)
         task = kwargs.get("task", "bounding-boxes-segmentation")
-        
+
         import gradio as gr
         if task:
             TYPE_ENV = task
@@ -1207,7 +1219,12 @@ class MyModel(AIxBlockMLBase):
                                     )
 
 
-        gradio_app, local_url, share_url = demo2.launch(share=True, quiet=True, prevent_thread_lock=True, server_name='0.0.0.0',show_error=True)
+        try:
+            gradio_app, local_url, share_url = demo2.launch(share=True, quiet=True, prevent_thread_lock=True, server_name='0.0.0.0',show_error=True)
+            self.model_public_url = share_url
+            self.model_local_url = local_url
+        finally:
+            self.is_init_model = False
 
         return {"share_url": share_url, 'local_url': local_url}
 

@@ -1,0 +1,29 @@
+# Python bytecode / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+runs-*/
+
+# Ultralytics/YOLO run artifacts and dataset caches (regenerated at runtime)
+*.cache
+runs/
+weights/
+*.pt
+
+# Logs
+*.log
+log_file.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local env/secrets
+.env
