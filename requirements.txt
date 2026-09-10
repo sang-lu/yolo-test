@@ -1,4 +1,3 @@
-prometheus-client
 aixblock-ml
 aixblock-sdk==0.0.5
 aixblock-tools
@@ -19,7 +18,6 @@ gitpython
 centrifuge-python
 flask_swagger_ui
 numpy
-grafana-api
 shapely
 twilio
 gradio-webrtc==0.0.4

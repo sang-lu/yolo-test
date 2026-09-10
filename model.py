@@ -47,8 +47,6 @@ from huggingface_hub import create_repo, login, upload_folder
 
 from centrifuge import CentrifugeError, Client, ClientEventHandler, SubscriptionEventHandler
 
-from dashboard import promethus_grafana
-
 import base64
 import hmac
 import json
@@ -64,17 +62,17 @@ CHANNEL_STATUS = {}
 
 mcp = FastMCP("aixblock-mcp")
 def decode_base64_to_image(base64_str):
-    # Kiểm tra xem chuỗi base64 có chứa header không, nếu có thì loại bỏ
+    # Check whether the base64 string has a header, and strip it if so
     if base64_str.startswith('data:image'):
         base64_str = base64_str.split(',')[1]
     
-    # Giải mã base64 thành bytes
+    # Decode base64 into bytes
     image_data = base64.b64decode(base64_str)
     
-    # Đọc ảnh từ bytes
+    # Read the image from bytes
     image = Image.open(BytesIO(image_data))
     
-    # Chuyển đổi ảnh từ định dạng PIL thành numpy array (vì YOLO dùng numpy arrays)
+    # Convert the image from PIL format to a numpy array (YOLO uses numpy arrays)
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
 def mask_to_polygons(mask, max_width, max_height, simplification=0.001):
@@ -313,7 +311,7 @@ def calculate_iou(polygon1: List[List[float]], polygon2: List[List[float]]) -> f
     return intersection / union if union != 0 else 0
 
 def nms_for_polygons(results: List[Dict[str, Any]], iou_threshold: float = 0.5) -> List[Dict[str, Any]]:
-    # Sắp xếp các phân đoạn theo `avg_score` giảm dần
+    # Sort segments by `avg_score` in descending order
     results = sorted(results, key=lambda x: x["score"], reverse=True)
     filtered_results = []
 
@@ -418,17 +416,17 @@ class MyModel(AIxBlockMLBase):
                     print(e)
 
         
-                # Đặt trạng thái kênh là "training"
+                # Set the channel status to "training"
                 CHANNEL_STATUS[channel_name] = {
                         "status": "training",
                         "hf_model_id": hf_model_name,
                         "command": command,
                         "created_at": time.time()
                     }
-                print(f"🚀 Đã bắt đầu training kênh: {channel_name}")
+                print(f"Started training channel: {channel_name}")
                 
                 def func_train_model(clone_dir, project_id, imgsz, epochs, token, checkpoint_version, checkpoint_id, dataset_version, dataset_id, host_name):
-                    print("Giá trị", host_name, token, project_id)
+                    print("Values:", host_name, token, project_id)
                     project = connect_project(host_name, token, project_id)
                     os.makedirs(f'{clone_dir}/data_zip', exist_ok=True)
                     os.makedirs(f'{clone_dir}/models', exist_ok=True)
@@ -460,11 +458,11 @@ class MyModel(AIxBlockMLBase):
                             if dataset_name: 
                                 data_zip_dir = os.path.join(data_path, dataset_name)
 
-                                # Giải nén file đầu tiên
+                                # Extract the first file
                                 with zipfile.ZipFile(data_zip_dir, 'r') as zip_ref:
                                     zip_ref.extractall(dataset_path)
 
-                                # Kiểm tra nếu trong dataset_path chỉ có 1 file zip => giải nén tiếp
+                                # If dataset_path only contains a single zip file, extract it too
                                 extracted_files = os.listdir(dataset_path)
                                 zip_files = [f for f in extracted_files if f.endswith('.zip')]
 
@@ -481,7 +479,7 @@ class MyModel(AIxBlockMLBase):
                                     with open(data_train_dir, 'r') as file:
                                         data_yaml = yaml.safe_load(file)
                                     
-                                    # Thay thế các đường dẫn
+                                    # Replace the paths
                                     data_yaml['train'] = os.path.join('train', 'images')
                                     data_yaml['val'] = os.path.join('val', 'images')
                                     data_yaml['test'] = os.path.join('test', 'images')
@@ -490,7 +488,7 @@ class MyModel(AIxBlockMLBase):
                                     with open(data_train_dir, 'r') as file:
                                         data_yaml = yaml.safe_load(file)
 
-                                # Ghi lại data.yaml
+                                # Write data.yaml back out
                                 with open(data_train_dir, 'w') as file:
                                     yaml.dump(data_yaml, file, default_flow_style=False, sort_keys=False)
                     try:
@@ -532,13 +530,13 @@ class MyModel(AIxBlockMLBase):
 
                     # if push_to_hub:
                     repo = create_repo(repo_id=hf_model_id, private=False, token=push_to_hub_token,exist_ok=True)
-                                            # Đăng nhập vào Hugging Face
+                                            # Log in to Hugging Face
                     login(token=push_to_hub_token)
 
-                    # Đẩy thư mục huấn luyện lên Hugging Face Hub
+                    # Push the training output folder to Hugging Face Hub
                     upload_folder(
-                        folder_path=f'{train_dir}/train',  # Thư mục chứa kết quả huấn luyện
-                        repo_id=repo.repo_id,  # ID của mô hình trên Hugging Face
+                        folder_path=f'{train_dir}/train',  # Folder containing the training output
+                        repo_id=repo.repo_id,  # Model ID on Hugging Face
                         token=push_to_hub_token
                     )
 
@@ -599,7 +597,6 @@ class MyModel(AIxBlockMLBase):
             return {"message": "tensorboardx started successfully"}
         
         elif command.lower() == "dashboard":
-            # link = promethus_grafana.generate_link_public("ml_00")
             return {"Share_url": ""}
         
         elif command.lower() == "predict":
@@ -624,9 +621,9 @@ class MyModel(AIxBlockMLBase):
                 else:
                     return {"message": "predict failed", "result": None}
                
-                # Giải mã base64 thành bytes
+                # Decode base64 into bytes
                 image_data = base64.b64decode(image_64)
-                # Đọc ảnh từ bytes
+                # Read the image from bytes
                 image = Image.open(BytesIO(image_data))
                 width, height = image.size
 
@@ -658,18 +655,17 @@ class MyModel(AIxBlockMLBase):
                 result = model(img)
                 
                 if model_type == "rectanglelabels":
-                    print(result)
                     boxes = result[0].boxes
                     names = result[0].names
                     for i in range(len(boxes)):
                         x_left, y_top, x_right, y_right = boxes.xyxy[i].tolist()
-                        predicted_label_idx = boxes.cls[i].item()  # Chuyển đổi nhãn về dạng số
+                        predicted_label_idx = boxes.cls[i].item()  # Convert the label to a numeric form
                         predicted_label = names[int(predicted_label_idx)]
-                        avg_score = boxes.conf[i].item()  # Điểm tin cậy của dự đoán
+                        avg_score = boxes.conf[i].item()  # Prediction confidence score
                         if avg_score < float(confidence_threshold):
                             continue
 
-                        # Thêm thông tin vào danh sách kết quả
+                        # Add the info to the results list
                         results.append({
                             "type": 'rectanglelabels',
                             "original_width": width,
@@ -681,48 +677,47 @@ class MyModel(AIxBlockMLBase):
                                 "width": ((x_right-x_left)/width)*100,
                                 "height": ((y_right-y_top)/height)*100,
                                 "rotation": 0,
-                                "rectanglelabels": [predicted_label]  # Chắc chắn rằng đây là danh sách
+                                "rectanglelabels": [predicted_label]  # Make sure this is a list
                             },
                             "score": avg_score
                         })
                    
                 elif model_type == "polygonlabels":
-                    for i in range(len(result[0].masks.xy)):  # Sử dụng thuộc tính xy để lấy tọa độ
-                        # Lấy thông tin về các segment (phân đoạn)
-                        segments = result[0].masks.xy[i]  # Lấy các tọa độ phân đoạn trong pixel
+                    for i in range(len(result[0].masks.xy)):  # Use the xy attribute to get the coordinates
+                        # Get info about the segments
+                        segments = result[0].masks.xy[i]  # Get the segment coordinates in pixels
                         # # if not data:
                         # polygons, has_holes = mask_to_polygons(segments, width, height)
                         # else:
                         polygons = [[float(x), float(y)] for x, y in segments]
 
-                        # Điều chỉnh tỷ lệ cho đúng kích thước ảnh
-                        # Chia mỗi tọa độ x, y cho width và height để đưa về tỷ lệ phần trăm
+                        # Scale to match the image dimensions
+                        # Divide each x, y coordinate by width and height to get a percentage
                         polygons = [[x / width * 100, y / height * 100] for x, y in polygons]
 
-                        label_index = result[0].boxes.cls[i].item()  # Lấy chỉ số của nhãn dự đoán
-                        avg_score = result[0].boxes.conf[i].item()  # Lấy điểm tin cậy của nhãn dự đoán
-                        predicted_label = result[0].names[label_index]  # Tên của nhãn (dựa trên index)
+                        label_index = result[0].boxes.cls[i].item()  # Get the predicted label's index
+                        avg_score = result[0].boxes.conf[i].item()  # Get the predicted label's confidence score
+                        predicted_label = result[0].names[label_index]  # The label's name (based on the index)
 
                         if avg_score < float(confidence_threshold):
                             continue
-                        # Chuyển đổi các điểm segment thành float
+                        # Convert the segment points to float
 
-                        if polygons:  # Nếu có điểm thì mới thêm vào kết quả
+                        if polygons:  # Only add to the results if there are points
                             results.append({
                                 "type": 'polygonlabels',
                                 "original_width": width,
                                 "original_height": height,
                                 "image_rotation": 0,
                                 "value": {
-                                    "points": polygons,  # Danh sách các điểm (x, y) tạo thành polygon
-                                    "polygonlabels": [predicted_label]  # Nhãn phân đoạn
+                                    "points": polygons,  # List of (x, y) points forming the polygon
+                                    "polygonlabels": [predicted_label]  # Segmentation label
                                 },
                                 "score": avg_score
                             })
                 
                     results = nms_for_polygons(results)
 
-                print(results)
                 return {"message": "predict completed successfully",
                         "result": results}
 
@@ -768,11 +763,11 @@ class MyModel(AIxBlockMLBase):
                     names = result[0].names
                     for i in range(len(boxes)):
                         x_left, y_top, w, h = boxes.xywh[i].tolist()
-                        predicted_label_idx = boxes.cls[i].item()  # Chuyển đổi nhãn về dạng số
+                        predicted_label_idx = boxes.cls[i].item()  # Convert the label to a numeric form
                         predicted_label = names[int(predicted_label_idx)]
-                        avg_score = boxes.conf[i].item()  # Điểm tin cậy của dự đoán
+                        avg_score = boxes.conf[i].item()  # Prediction confidence score
 
-                        # Thêm thông tin vào danh sách kết quả
+                        # Add the info to the results list
                         results.append({
                             "type": 'rectanglelabels',
                             "original_width": width,
@@ -784,40 +779,39 @@ class MyModel(AIxBlockMLBase):
                                 "width": float(w)/img_width*100,
                                 "height": float(h)/img_height*100,
                                 "rotation": 0,
-                                "rectanglelabels": [predicted_label]  # Chắc chắn rằng đây là danh sách
+                                "rectanglelabels": [predicted_label]  # Make sure this is a list
                             },
                             "score": avg_score
                         })
                    
                 elif model_type == "polygonlabels":
-                    for i in range(len(result[0].masks.xy)):  # Sử dụng thuộc tính xy để lấy tọa độ
-                        # Lấy thông tin về các segment (phân đoạn)
-                        segments = result[0].masks.xy[i]  # Lấy các tọa độ phân đoạn trong pixel
+                    for i in range(len(result[0].masks.xy)):  # Use the xy attribute to get the coordinates
+                        # Get info about the segments
+                        segments = result[0].masks.xy[i]  # Get the segment coordinates in pixels
                         if not data:
                             polygons, has_holes = mask_to_polygons(segments, width, height)
                         else:
                             polygons = [[float(x), float(y)] for x, y in segments]
 
-                        label_index = result[0].boxes.cls[i].item()  # Lấy chỉ số của nhãn dự đoán
-                        avg_score = result[0].boxes.conf[i].item()  # Lấy điểm tin cậy của nhãn dự đoán
-                        predicted_label = result[0].names[label_index]  # Tên của nhãn (dựa trên index)
+                        label_index = result[0].boxes.cls[i].item()  # Get the predicted label's index
+                        avg_score = result[0].boxes.conf[i].item()  # Get the predicted label's confidence score
+                        predicted_label = result[0].names[label_index]  # The label's name (based on the index)
 
-                        # Chuyển đổi các điểm segment thành float
+                        # Convert the segment points to float
 
-                        if polygons:  # Nếu có điểm thì mới thêm vào kết quả
+                        if polygons:  # Only add to the results if there are points
                             results.append({
                                 "type": 'polygonlabels',
                                 "original_width": width,
                                 "original_height": height,
                                 "image_rotation": 0,
                                 "value": {
-                                    "points": polygons,  # Danh sách các điểm (x, y) tạo thành polygon
-                                    "polygonlabels": [predicted_label]  # Nhãn phân đoạn
+                                    "points": polygons,  # List of (x, y) points forming the polygon
+                                    "polygonlabels": [predicted_label]  # Segmentation label
                                 },
                                 "score": avg_score
                             })
 
-                print(results)
                 return {"message": "predict completed successfully",
                         "result": results}
 
@@ -828,7 +822,7 @@ class MyModel(AIxBlockMLBase):
             channel = kwargs.get("channel", None)
             
             if channel:
-                # Nếu có truyền kênh cụ thể
+                # If a specific channel was passed
                 status_info = CHANNEL_STATUS.get(channel)
                 if status_info is None:
                     return {"channel": channel, "status": "not_found"}
@@ -837,7 +831,7 @@ class MyModel(AIxBlockMLBase):
                 else:
                     return {"channel": channel, "status": status_info}
             else:
-                # Lấy tất cả kênh
+                # Get all channels
                 if not CHANNEL_STATUS:
                     return {"message": "No channels available"}
                 
@@ -985,60 +979,58 @@ class MyModel(AIxBlockMLBase):
             import numpy as np
             def numpy_to_base64(np_array, format="JPEG"):
                     """
-                    Chuyển đổi một mảng NumPy (hình ảnh) sang chuỗi base64.
+                    Convert a NumPy array (image) to a base64 string.
                     
                     Parameters:
-                    - np_array: Mảng NumPy chứa dữ liệu hình ảnh.
-                    - format: Định dạng tệp hình ảnh (ví dụ: JPEG, PNG).
+                    - np_array: NumPy array containing the image data.
+                    - format: Image file format (e.g. JPEG, PNG).
                     
                     Returns:
-                    - Chuỗi base64 đại diện cho hình ảnh.
+                    - Base64 string representing the image.
                     """
-                    # Chuyển đổi mảng NumPy thành đối tượng hình ảnh PIL
+                    # Convert the NumPy array into a PIL image object
                     image = Image.fromarray(np_array.astype("uint8"))
                     
-                    # Lưu hình ảnh vào một buffer bằng BytesIO
+                    # Save the image into a buffer using BytesIO
                     buffered = BytesIO()
                     image.save(buffered, format=format)
                     
-                    # Mã hóa nội dung buffer thành base64
+                    # Encode the buffer contents as base64
                     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
                     
                     return img_base64
             
             def predict(input_img):
                 import cv2
-                print(input_img)
                 img_64 = numpy_to_base64(input_img)
                 result = self.action("predict", data={"image": img_64})
-                print(result)
                 if result['result']:
                     if TYPE_ENV == "DETECTION" or TYPE_ENV == 'polygon-segmentation':
-                        for res in result['result']:  # Lặp qua từng phần tử trong danh sách kết quả
-                    # points = res['value']['points']  # Tọa độ box [x_left, y_top, x_right, y_bottom]
+                        for res in result['result']:  # Loop through each item in the results list
+                    # points = res['value']['points']  # Box coordinates [x_left, y_top, x_right, y_bottom]
                             original_width = res['original_width']
                             original_height = res['original_height']
-                            label = res['value']['rectanglelabels'][0]  # Tên nhãn (label)
-                            score = res['score']  # Điểm tin cậy (confidence score)
+                            label = res['value']['rectanglelabels'][0]  # Label name
+                            score = res['score']  # Confidence score
 
                             x_left_pct = res['value']['x']
                             y_top_pct = res['value']['y']
                             width_pct = res['value']['width']
                             height_pct = res['value']['height']
 
-                            # Tính toán lại tọa độ và kích thước bounding box trong ảnh gốc
+                            # Recompute the bounding box coordinates and size in the original image
                             x_left = (x_left_pct / 100) * original_width
                             y_top = (y_top_pct / 100) * original_height
                             width = (width_pct / 100) * original_width
                             height = (height_pct / 100) * original_height
 
-                            # Chuyển đổi tọa độ thành kiểu int nếu cần
+                            # Convert the coordinates to int if needed
                             x_left, y_top, x_right, y_bottom = int(x_left), int(y_top), int(x_left + width), int(y_top + height)
 
-                            # Vẽ hình chữ nhật lên ảnh
+                            # Draw the rectangle on the image
                             input_img = cv2.rectangle(input_img, (x_left, y_top), (x_right, y_bottom), color=(255, 0, 0), thickness=2)
 
-                            # Vẽ tên nhãn lên ảnh
+                            # Draw the label name on the image
                             input_img = cv2.putText(input_img, label, (x_left, y_top), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
                             score_text = f"Score: {score:.2f}"
@@ -1049,7 +1041,7 @@ class MyModel(AIxBlockMLBase):
                         for res in result['result']:
                             original_width = res['original_width']
                             original_height = res['original_height']
-                            points = np.array(res['value']['points'], np.int32)  # Chuyển các điểm về dạng numpy array
+                            points = np.array(res['value']['points'], np.int32)  # Convert the points into a numpy array
                             points = points * [original_width / 100, original_height / 100]
                             label = res['value']['polygonlabels'][0] 
 
@@ -1087,41 +1079,41 @@ class MyModel(AIxBlockMLBase):
                 return "<br>".join(checkpoint_list)
 
             def process_video(video_path):
-                # Mở video tải lên từ đường dẫn
+                # Open the uploaded video from its path
                 cap = cv2.VideoCapture(video_path)
 
-                # Kiểm tra nếu video được mở thành công
+                # Check whether the video opened successfully
                 if not cap.isOpened():
                     return "Error: Could not open video"
 
-                # Lấy thông tin về video
+                # Get info about the video
                 fps = cap.get(cv2.CAP_PROP_FPS)
                 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-                # Tạo đối tượng để ghi video đầu ra
+                # Create the writer object for the output video
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 out = cv2.VideoWriter('processed_video.mp4', fourcc, fps, (frame_width, frame_height))
 
                 while True:
                     ret, frame = cap.read()
                     if not ret:
-                        break  # Dừng nếu không còn frame nào
+                        break  # Stop when there are no more frames
 
-                    # Xử lý frame
+                    # Process the frame
                     processed_frame = predict(frame)
 
-                    # Viết frame đã xử lý vào video output
+                    # Write the processed frame to the output video
                     out.write(processed_frame)
 
-                # Giải phóng các tài nguyên
+                # Release the resources
                 cap.release()
                 out.release()
 
                 return 'processed_video.mp4'
 
             def clear():
-                """Hàm xóa đầu vào và đầu ra."""
+                """Clear the input and output."""
                 return None, None
             
             with gr.Tabs(elem_classes=["feedback"]) as parent_tabs:
@@ -1176,15 +1168,15 @@ class MyModel(AIxBlockMLBase):
 
                                 # Button functionality
                                 submit_button.click(
-                                    fn=predict,  # Gọi hàm xử lý
-                                    inputs=webcam_feed,  # Đầu vào là webcam
-                                    outputs=processed_output  # Hiển thị kết quả
+                                    fn=predict,  # Call the processing function
+                                    inputs=webcam_feed,  # Input is the webcam
+                                    outputs=processed_output  # Show the result
                                 )
 
                                 clear_button.click(
-                                    fn=clear,  # Gọi hàm xóa
-                                    inputs=None,  # Không cần đầu vào
-                                    outputs=[webcam_feed, processed_output]  # Xóa cả webcam feed và kết quả
+                                    fn=clear,  # Call the clear function
+                                    inputs=None,  # No input needed
+                                    outputs=[webcam_feed, processed_output]  # Clear both the webcam feed and the result
                                 )
 
                 with gr.TabItem("Video", id=1):
@@ -1205,12 +1197,12 @@ class MyModel(AIxBlockMLBase):
                                 gr.Markdown("## Output", elem_classes=["title1"])
 
                             with gr.Row():
-                                # Cột đầu tiên cho video input
+                                # First column for the video input
                                 with gr.Column():
                                     video_input = gr.Video(label="Upload Video", format="mp4")
                                     submit_button = gr.Button("Process Video")
 
-                                # Cột thứ hai cho video output và nút submit
+                                # Second column for the video output and submit button
                                 with gr.Column():
                                     video_output = gr.Video(label="Processed Video")
                                 
@@ -1244,30 +1236,30 @@ class MyModel(AIxBlockMLBase):
 
             if result['result']:
                 if TYPE_ENV == "DETECTION":
-                    for res in result['result']:  # Lặp qua từng phần tử trong danh sách kết quả
-                        points = res['value']['points']  # Tọa độ box [x_left, y_top, x_right, y_bottom]
-                        label = res['value']['rectanglelabels'][0]  # Tên nhãn (label)
-                        score = res['score']  # Điểm tin cậy (confidence score)
+                    for res in result['result']:  # Loop through each item in the results list
+                        points = res['value']['points']  # Box coordinates [x_left, y_top, x_right, y_bottom]
+                        label = res['value']['rectanglelabels'][0]  # Label name
+                        score = res['score']  # Confidence score
 
-                        # Chuyển đổi tọa độ thành int
+                        # Convert the coordinates to int
                         x_left, y_top, x_right, y_bottom = [int(coord) for coord in points]
 
-                        # Vẽ hình chữ nhật lên ảnh
+                        # Draw the rectangle on the image
                         input_img = cv2.rectangle(input_img, (x_left, y_top), (x_right, y_bottom), color=(255, 0, 0), thickness=2)
 
-                        # Vẽ tên nhãn lên ảnh
+                        # Draw the label name on the image
                         input_img = cv2.putText(input_img, label, (x_left, y_top), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
                 elif TYPE_ENV == "SEGMENT":
                     for res in result['result']:
-                        points = np.array(res['value']['points'], np.int32)  # Chuyển các điểm về dạng numpy array
-                        label = res['value']['polygonlabels'][0]  # Nhãn của đối tượng
-                        score = res['score']  # Điểm tin cậy của dự đoán
+                        points = np.array(res['value']['points'], np.int32)  # Convert the points into a numpy array
+                        label = res['value']['polygonlabels'][0]  # The object's label
+                        score = res['score']  # Prediction confidence score
                         
-                        # Vẽ mask lên ảnh
-                        input_img = cv2.fillPoly(input_img, [points], color=(0, 255, 0))  # Màu xanh cho vùng phân đoạn
+                        # Draw the mask on the image
+                        input_img = cv2.fillPoly(input_img, [points], color=(0, 255, 0))  # Green for the segmented area
                         
-                        # Vẽ tên nhãn lên ảnh (tại điểm đầu tiên của polygon)
+                        # Draw the label name on the image (at the polygon's first point)
                         x_text, y_text = points[0][0], points[0][1]
                         input_img = cv2.putText(input_img, label, (x_text, y_text), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 

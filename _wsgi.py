@@ -112,14 +112,14 @@ if __name__ == "__main__":
     SWAGGER_URL = '/swagger'
     API_URL = '/swagger.json'
 
-    # Thiết lập Swagger UI blueprint
+    # Set up the Swagger UI blueprint
     swagger_ui_blueprint = get_swaggerui_blueprint(
         SWAGGER_URL,
         API_URL,
         config={'app_name': "My API"}
     )
 
-    # Đăng ký Swagger UI blueprint
+    # Register the Swagger UI blueprint
     app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
     app.run(host=args.host, port=args.port, debug=args.debug, ssl_context=('/app/ssl/uwsgi_cert.pem', '/app/ssl/uwsgi_key.pem'))
     CORS(app,resources={r"/*": {"origins": "*"}})
@@ -140,14 +140,14 @@ else:
     SWAGGER_URL = '/swagger'
     API_URL = '/swagger.json'
 
-    # Thiết lập Swagger UI blueprint
+    # Set up the Swagger UI blueprint
     swagger_ui_blueprint = get_swaggerui_blueprint(
         SWAGGER_URL,
         API_URL,
         config={'app_name': "My API"}
     )
 
-    # Đăng ký Swagger UI blueprint
+    # Register the Swagger UI blueprint
     app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
     
     CORS(app,resources={r"/*": {"origins": "*"}})
@@ -158,25 +158,25 @@ else:
     
     @app.route('/downloads', methods=['GET'])
     def download_file():
-        # Lấy tên file từ query parameter
+        # Get the file name from the query parameter
         filename = request.args.get('path')
         if not filename:
             return abort(400, description="File name is required")
         
-        # Tạo đường dẫn đầy đủ đến file
+        # Build the full path to the file
         current_dir = os.getcwd()
     
-        # Tạo đường dẫn đầy đủ đến file
+        # Build the full path to the file
         full_path = os.path.join(current_dir, filename)
         
-        # Kiểm tra xem file có tồn tại không
+        # Check whether the file exists
         if not os.path.exists(full_path):
             return abort(404, description="File not found")
         
-        # Trả về file dưới dạng đính kèm
+        # Return the file as an attachment
         return send_file(full_path, as_attachment=True)
 
     @app.route('/documents')
     def serve_index():
-        # Trả về file index.html từ thư mục hiện tại
+        # Serve index.html from the current directory
         return send_from_directory(os.getcwd(), 'index.html')

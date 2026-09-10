@@ -38,12 +38,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Prometheus and Loki configuration
-LOKI_URL = os.getenv("LOKI_URL", "http://207.246.109.178:3100")
-JOB_NAME = os.getenv("JOB_NAME", "test-fastapi")
-PUSH_GATEWAY_URL = os.getenv("PUSH_GATEWAY_URL", "http://207.246.109.178:9091")
-JOB_INTERVAL = int(os.getenv("JOB_INTERVAL", 60))
-
 model = MyModel()
 
 class ActionRequest(BaseModel):
